@@ -4,7 +4,7 @@
  * Description: Collection of functions for files input/output related operations
  *
  * Created Date:Tanish Bansal
- * Author:
+ * Author: Tanish Bansal
  *
  */
 
@@ -92,8 +92,52 @@ const readDir = (dir) => {
  * @param {string} pathProcessed
  * @return {promise}
  */
-const grayScale = (pathIn, pathOut) => {
-  
+const grayScale = async (pathIn, pathOut) => {
+  return new Promise((resolve, reject) => {
+    fs.promises
+      .mkdir(pathOut, { recursive: true })
+      .catch((error) => {
+        console.error("Error while creating directory:", error);
+        reject(error);
+      });
+    fs.createReadStream(pathIn)
+      .pipe(new PNG())
+      .on("parsed", function () {
+        let a = pathIn.split("\\")
+        // Used this to acces the name of the file form the path
+        for (let y = 0; y < this.height; y++) {
+          for (let x = 0; x < this.width; x++) {
+            const idx = (this.width * y + x) << 2;
+            const avg = Math.round(
+              (this.data[idx] + this.data[idx + 1] + this.data[idx + 2]) / 3
+            );
+            this.data[idx] = avg;
+            this.data[idx + 1] = avg;
+            this.data[idx + 2] = avg;
+            
+          }
+        }
+        
+        this.pack()
+          .pipe(fs.createWriteStream(path.join(pathOut, `${a[a.length -1]}`)))
+          
+          .on("finish", () => {
+            console.log(`Grayscale conversion completed for ${pathIn}`);
+            
+            resolve();
+          })
+          .on("error", (error) => {
+            console.error(
+              `Error writing grayscale image for ${pathIn}: ${error}`
+            );
+            reject(error);
+          });
+      })
+      .on("error", (error) => {
+        console.error(`Error parsing PNG file ${pathIn}: ${error}`);
+        reject(error);
+      });
+  });
 };
 
 module.exports = {
@@ -101,3 +145,4 @@ module.exports = {
   readDir,
   grayScale,
 };
+

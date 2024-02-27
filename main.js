@@ -15,4 +15,6 @@ const zipFilePath = path.join(__dirname, "myfile.zip");
 const pathUnzipped = path.join(__dirname, "unzipped");
 const pathProcessed = path.join(__dirname, "grayscaled");
 console.log( pathUnzipped)
-IOhandler.unzip(zipFilePath,pathUnzipped).then(() => IOhandler.readDir(pathUnzipped))
+IOhandler.unzip(zipFilePath,pathUnzipped).then(() => IOhandler.readDir(pathUnzipped)).then((file) => file.forEach(image => {
+    IOhandler.grayScale(image,pathProcessed)
+}))
