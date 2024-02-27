@@ -18,7 +18,12 @@ const {Transform} = require("stream")
 const { type } = require("os")
 const { existsSync, mkdirSync } = require("fs")
 const path = require("path")
+const readline = require("readline")
 
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
 /**
  * Description: decompress file from given pathIn, write to given pathOut
  *
@@ -139,10 +144,123 @@ const grayScale = async (pathIn, pathOut) => {
       });
   });
 };
+/**
+ * Description: Read in png file by given pathIn,
+ * convert to grayscale and write to given pathOut
+ *
+ * @param {string} filePath
+ * @param {string} pathProcessed
+ * @return {promise}
+ */
+const sepia = async (pathIn, pathOut) => {
+  return new Promise((resolve, reject) => {
+    fs.promises
+      .mkdir(pathOut, { recursive: true })
+      .catch((error) => {
+        console.error("Error while creating directory:", error);
+        reject(error);
+      });
+    fs.createReadStream(pathIn)
+      .pipe(new PNG())
+      .on("parsed", function () {
+        let a = pathIn.split("\\")
+        // Used this to acces the name of the file form the path
+        for (let y = 0; y < this.height; y++) {
+          for (let x = 0; x < this.width; x++) {
+            const idx = (this.width * y + x) << 2;
+            const avg = Math.round(
+              (this.data[idx] + this.data[idx + 1] + this.data[idx + 2]) / 3
+            );
+            const R = this.data[idx];
+            const G = this.data[idx + 1];
+            const B = this.data[idx + 2];
+            const sepiaR = Math.min(
+              255,
+              Math.round(R * 0.393 + G * 0.769 + B * 0.189)
+            );
+            const sepiaG = Math.min(
+              255,
+              Math.round(R * 0.349 + G * 0.686 + B * 0.168)
+            );
+            const sepiaB = Math.min(
+              255,
+              Math.round(R * 0.272 + G * 0.534 + B * 0.131)
+            );
+            this.data[idx] = sepiaR;
+            this.data[idx + 1] = sepiaG;
+            this.data[idx + 2] = sepiaB;
+          }
+        }
+        
+        this.pack()
+          .pipe(fs.createWriteStream(path.join(pathOut, `${a[a.length -1]}`)))
+          
+          .on("finish", () => {
+            console.log(`Sepia conversion completed for ${pathIn}`);
+            
+            resolve();
+          })
+          .on("error", (error) => {
+            console.error(
+              `Error writing sepia image for ${pathIn}: ${error}`
+            );
+            reject(error);
+          });
+      })
+      .on("error", (error) => {
+        console.error(`Error parsing PNG file ${pathIn}: ${error}`);
+        reject(error);
+      });
+  });
+};
+const menuShow = () => {
+  console.log(`
+        Please choose from the available options below:
+        1) readDir
+        2) grayScale
+        3) sepia
+        4) Both in seperate folders
+    `);
+};
 
+const userInput = (question) =>
+  new Promise((resolve,reject) => {
+    rl.question(question, resolve);
+  });
+
+const userPrompt = async () => {
+  try {
+    let userPick = "";
+    let valid_pick = false;
+    const valid_text = ["readdir", "grayscale", "sepia","Both in seperate folders", "1", "2", "3","4"];
+    while (!valid_pick) {
+      const filter = await userInput(
+        "Enter the number of the desired function: "
+      );
+      if (valid_text.includes(filter.toLowerCase())) {
+        valid_pick = true;
+        userPick = filter;
+      } else {
+        console.log("Invalid input.");
+      }
+    }
+    console.log(`Option ${userPick} has been selected.`);
+    return userPick;
+  } catch (err) {
+    console.log("Error prompt: ", err);
+  }
+};
+const stopPrompt = () => {
+  rl.close();
+};
 module.exports = {
   unzip,
   readDir,
   grayScale,
+  sepia,
+  menuShow,
+  userPrompt,
+  userInput,
+  stopPrompt
 };
 
